@@ -9,7 +9,7 @@ static mut CURRENT_VALUE: u64 = 0;
 #[derive(Debug, Encode, Decode)]
 struct MessageIn {
     value: u64,
-    annotation: String,
+    annotation: Vec<u8>,
 }
 
 #[derive(Debug, Encode, Decode)]
@@ -26,7 +26,7 @@ pub unsafe extern "C" fn handle() {
     CURRENT_VALUE += message_in.value;
     ext::debug(&format!(
         "Increased with annotation: {}",
-        message_in.annotation
+        String::from_utf8_unchecked(message_in.annotation),
     ));
 
     msg::reply(
