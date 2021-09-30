@@ -17,7 +17,7 @@ for entry in $(get_members $ROOT_DIR); do
   # Quotes around `$entry` are not used intentionally to support globs in entry syntax, e.g. "member/*"
   for member in "$ROOT_DIR"/$entry; do
     cd "$member"
-    cargo +nightly build --release
+    RUSTFLAGS="-C debug_assertions -C link-args=--import-memory" cargo +nightly build --release
   done
 done
 
