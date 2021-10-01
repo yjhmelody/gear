@@ -1275,10 +1275,10 @@ dependencies = [
 [[package]]
 name = "dlmalloc"
 version = "0.1.4"
-source = "git+https://github.com/grishasobol/dlmalloc-rs?branch=gsobol#cb45f383c7f224f2e4f6f5262a922061b0ac019e"
 dependencies = [
  "libc",
  "libc_print",
+ "str-buf",
 ]
 
 [[package]]
@@ -1931,7 +1931,7 @@ dependencies = [
 name = "galloc"
 version = "0.1.0"
 dependencies = [
- "dlmalloc 0.1.4 (git+https://github.com/grishasobol/dlmalloc-rs?branch=gsobol)",
+ "dlmalloc 0.1.4",
 ]
 
 [[package]]
@@ -7139,6 +7139,12 @@ dependencies = [
  "num-traits",
  "rand 0.8.4",
 ]
+
+[[package]]
+name = "str-buf"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5273f1a92cb22cb10c25f1f6d7b7f7db8d9836f219947040842a37252326f64"
 
 [[package]]
 name = "strsim"

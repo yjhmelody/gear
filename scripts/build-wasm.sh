@@ -12,12 +12,20 @@ get_members() {
     sed -n -e 's/"\([^"]*\)"/\1/gp'
 }
 
+members=$(get_members $ROOT_DIR)
+echo $members
+if [ ! -z "$1" ]
+  then
+    members=$(echo "$members" | tr " " "\n" | grep "$1") 
+fi
+
 # For each entry in Cargo.toml workspace members:
-for entry in $(get_members $ROOT_DIR); do
+for entry in $members; do
   # Quotes around `$entry` are not used intentionally to support globs in entry syntax, e.g. "member/*"
   for member in "$ROOT_DIR"/$entry; do
     cd "$member"
-    RUSTFLAGS="-C debug_assertions -C link-args=--import-memory" cargo +nightly build --release
+#    RUSTFLAGS="-C debug_assertions -C link-args=--import-memory" cargo +nightly build --release
+    cargo +nightly build --release
   done
 done
 
