@@ -16,17 +16,22 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-#![no_std]
-#![cfg_attr(feature = "strict", deny(warnings))]
-#![doc(html_logo_url = "https://gear-tech.io/images/logo-black.svg")]
+use crate::ProgramId;
 
-pub mod exec;
-pub mod msg;
-pub mod program;
+mod sys {
+    extern "C" {
+        pub fn gr_submit_program(code_ptr: *const u8, code_len: u32, program_id_ptr: *mut u8);
+    }
+}
 
-mod general;
-pub use general::*;
-
-mod utils;
-#[cfg(feature = "debug")]
-pub use utils::ext;
+pub fn submit(code: &[u8]) -> ProgramId {
+    unsafe {
+        let mut program_id = ProgramId::default();
+        sys::gr_submit_program(
+            code.as_ptr(),
+            code.len() as _,
+            program_id.as_mut_slice().as_mut_ptr(),
+        );
+        program_id
+    }
+}
