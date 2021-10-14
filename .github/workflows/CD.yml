@@ -15,8 +15,9 @@ jobs:
       - name: Install Info
         run: |
             ls -l .
-            ls -l ../..
             pwd
+            git rev-parse HEAD 
+ 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
 
