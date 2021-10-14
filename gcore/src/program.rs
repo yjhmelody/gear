@@ -16,22 +16,30 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::ProgramId;
-
 mod sys {
     extern "C" {
-        pub fn gr_submit_program(code_ptr: *const u8, code_len: u32, program_id_ptr: *mut u8);
+        pub fn gr_submit_program(
+            code_ptr: *const u8,
+            code_len: u32,
+            nonce: u64,
+            init_payload_ptr: *const u8,
+            init_payload_len: u32,
+            init_gas_limit: u64,
+            init_value: *const u8,
+        );
     }
 }
 
-pub fn submit(code: &[u8]) -> ProgramId {
+pub fn submit(code: &[u8], nonce: u64, init_payload: &[u8], init_gas_limit: u64, init_value: u128) {
     unsafe {
-        let mut program_id = ProgramId::default();
         sys::gr_submit_program(
             code.as_ptr(),
             code.len() as _,
-            program_id.as_mut_slice().as_mut_ptr(),
+            nonce,
+            init_payload.as_ptr(),
+            init_payload.len() as _,
+            init_gas_limit,
+            init_value.to_le_bytes().as_ptr(),
         );
-        program_id
     }
 }
