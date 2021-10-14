@@ -7,6 +7,7 @@ WORKDIR /gear
 COPY . /gear
 RUN apt-get update && apt-get install -y libsecp256k1-dev openssl
 RUN rustup update
+RUN cargo run --release -- --version
 RUN cargo build --release 
 
 # ===== SECOND STAGE ======
