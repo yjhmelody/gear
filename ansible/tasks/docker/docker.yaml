@@ -1,14 +1,27 @@
 ---
 #Install/update backend docker-compose
+
 - name: Copy docker-compose
   template:
     src: docker-compose.yaml.j2
     dest: /home/ec2-user/docker-compose.yaml
 
+#- name: Copy db-cleaning-compose
+ # copy:
+ #   src: clean-db.yaml
+ #   dest: /home/ec2-user/clean-db.yaml
+ # become: yes
+
 - name: Stop docker-compose
   shell: >
     /usr/local/bin/docker-compose -f "/home/ec2-user/docker-compose.yaml" down
   become: yes
+
+#- name: remove db
+ # shell: >
+ #   /usr/local/bin/docker-compose -f "/home/ec2-user/clean-db.yaml" up -d
+ # become: yes
+
 
 - name: Pull docker images
   shell: >
