@@ -679,6 +679,33 @@ pub mod pallet {
             Ok(().into())
         }
 
+        /// Puts program code in the storage.
+        #[pallet::weight(T::WeightInfo::submit_program(code.len() as u32, 0))]
+        pub fn submit_code(
+            origin: OriginFor<T>,
+            code: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
+            let who = ensure_signed(origin)?;
+
+            let code_hash: H256 = sp_io::hashing::blake2_256(&code[..]).into();
+            common::set_code(code_hash, &code[..]);
+
+            Ok(().into())
+        }
+
+        /// Dispose some unused program code from the storage.
+        #[pallet::weight(0)]
+        pub fn dispose_code(
+            origin: OriginFor<T>,
+            code: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
+            let who = ensure_signed(origin)?;
+
+            let code_hash: H256 = sp_io::hashing::blake2_256(&code[..]).into();
+
+            Ok(().into())
+        }
+
         /// Sends a message to a program or to another account.
         ///
         /// The origin must be Signed and the sender must have sufficient funds to pay
