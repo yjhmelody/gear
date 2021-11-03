@@ -1,8 +1,10 @@
 #![no_std]
-extern crate alloc;
-use gstd_async::msg as msg_async;
+#![feature(const_btree_new)]
 
-use gstd::{exec, msg, prelude::*, ProgramId};
+extern crate alloc;
+
+use gstd_async::msg as msg_async;
+use gstd::{debug, exec, msg, prelude::*, ProgramId};
 
 use alloc::collections::BTreeSet;
 use codec::{Decode, Encode};
@@ -19,6 +21,12 @@ gstd::metadata! {
 #[derive(Debug, Decode, Encode, TypeInfo, Clone, Ord, PartialOrd, Eq, PartialEq)]
 struct Channel {
   id: H256,
+  name: String,
+  owner_id: H256,
+}
+
+#[derive(Debug, Decode, TypeInfo)]
+struct Meta {
   name: String,
   owner_id: H256,
 }
@@ -44,12 +52,13 @@ struct State {
 }
 
 impl State {
-  fn add_channel(&mut self, channel: &Channel) {
-    STATE.channels.insert(*channel);
+  fn add_channel(&mut self, channel: Channel) {
+    unsafe { STATE.channels.insert(channel) };
   }
 
   fn find_channel(&self, channel_id: H256) -> Channel {
-    let channel = STATE.channels.into_iter().find(|&x| x.id == channel_id).unwrap();
+    let channels = unsafe { STATE.channels.clone() };
+    let channel = channels.into_iter().find(|x| x.id == channel_id).unwrap();
 
     return channel;
   }
@@ -59,7 +68,7 @@ impl State {
   }
 }
 
-static mut STATE: State = State { channels: vec![] };
+static mut STATE: State = State { channels: BTreeSet::new() };
 const GAS_LIMIT: u64 = 50_000_000;
 const GAS_RESERVE: u64 = 10_000_000;
 
@@ -70,9 +79,8 @@ pub unsafe extern "C" fn init() {
 #[gstd_async::main]
 async fn main() {
     let action: RouterAction = msg::load().expect("Unable to decode Action");
-    let bh: u32 = exec::block_height(); // block height
 
-    let source = msg::source();
+    debug!("Received action: {:?}", action);
 
     match action {
       RouterAction::Register(hex) => {
@@ -82,23 +90,33 @@ async fn main() {
         // this will be changed when msg_async is fixed
         let reply = msg_async::send_and_wait_for_reply(channel_id, action.encode().as_ref(), GAS_LIMIT, 0).await;
 
-        let meta = Channel::decode(&mut reply.as_ref())
-          .expect("Unable to decode Channel meta");
+        let meta = Meta::decode(&mut reply.as_ref())
+          .expect("Unable to decode Meta of the channel");
+
+        let channel = Channel {
+          id: hex,
+          name: meta.name,
+          owner_id: meta.owner_id,
+        };
 
         // if successfully decoded meta, store the channel info in the state
-        STATE.add_channel(&meta);
+        unsafe { STATE.add_channel(channel.clone()) };
 
-        msg::reply(vec![meta], exec::gas_available() - GAS_RESERVE, 0);
+        debug!("Added a new channel {:?}", hex);
+
+        msg::reply(vec![channel], exec::gas_available() - GAS_RESERVE, 0);
       }
       RouterAction::Channel(hex) => {
-        let channel_id = ProgramId(hex.to_fixed_bytes());
+        let meta: Channel = unsafe { STATE.find_channel(hex).clone() };
 
-        let meta: Channel = STATE.find_channel(hex);
+        debug!("Requested info about channel {:?}", hex);
 
         msg::reply(vec![meta], exec::gas_available() - GAS_RESERVE, 0);
       }
       RouterAction::Channels => {
-        let channels = STATE.get_vec_channels();
+        let channels = unsafe { STATE.get_vec_channels() };
+
+        debug!("Sending a list of all channels: {:?}", channels);
 
         msg::reply(channels, exec::gas_available() - GAS_RESERVE, 0);
       }

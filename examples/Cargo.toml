@@ -29,6 +29,8 @@ members = [
     "wait",
     "token-vendor",
     "token-vendor/workshop-example",
+    "gear-feeds-router",
+    "gear-feeds-channel",
 ]
 
 [profile.release]
