@@ -2,7 +2,7 @@
 
 extern crate alloc;
 use gstd::{exec, msg, prelude::*, ProgramId};
-use ringbuffer::{AllocRingBuffer, RingBufferExt, RingBufferWrite};
+use rbl_circular_buffer::CircularBuffer;
 use codec::{Decode, Encode};
 use primitive_types::H256;
 use scale_info::TypeInfo;
@@ -11,19 +11,17 @@ gstd::metadata! {
     title: "GEAR Workshop Channel Contract",
     handle:
         input: ChannelAction,
-        output: String
+        output: Vec<Message>,
 }
 
 #[derive(Debug, Encode, TypeInfo, Clone)]
 struct Message {
-    channel_id: H256,
     text: String,
     timestamp: u32,
 }
 
-#[derive(Debug, Encode, Decode, TypeInfo)]
-struct Channel {
-  id: H256,
+#[derive(Debug, Encode, TypeInfo)]
+struct Meta {
   name: String,
   owner_id: H256,
 }
@@ -41,7 +39,7 @@ struct State {
   channel_name: String,
   owner_id: Option<ProgramId>,
   subscribers: Vec<ProgramId>,
-  messages: AllocRingBuffer<Message>,
+  messages: CircularBuffer<Message>,
 }
 
 fn program_id_to_hex(program_id: ProgramId) -> H256 {
@@ -72,7 +70,7 @@ static mut STATE: State = State {
   channel_name: "Test".to_string(),
   owner_id: None,
   subscribers: Vec::new(),
-  messages: AllocRingBuffer::with_capacity(5),
+  messages: CircularBuffer::new(5),
 };
 
 const GAS_RESERVE: u64 = 10_000_000;
@@ -80,6 +78,15 @@ const GAS_RESERVE: u64 = 10_000_000;
 #[no_mangle]
 pub unsafe extern "C" fn init() {
   STATE.set_owner_id(msg::source());
+
+  let bh: u32 = exec::block_height();
+
+  let init_message = Message {
+    text: format!("Channel {} was created by {}", STATE.channel_name, STATE.owner_id).to_string(),
+    timestamp: bh,
+  };
+
+  STATE.add_message()
 }
 
 #[no_mangle]
@@ -89,37 +96,54 @@ pub unsafe extern "C" fn handle() {
 
     let source: ProgramId = msg::source();
 
+    debug!("Received action: {:?}", action);
+
+    let success_msg = Message {
+      text: "success".to_string(),
+      timestamp: 0,
+    };
+
     match action {
       ChannelAction::Meta => {
-        let meta = Channel {
-          id: ,// how to get program id of this?
+        let meta = Meta {
           name: STATE.channel_name,
           owner_id: program_id_to_hex(STATE.owner_id.unwrap()),
         };
 
+        debug!("Sending meta information: {:?}", meta);
+
         msg::reply(meta, exec::gas_available() - GAS_RESERVE, 0); // how to send meta?
       }
       ChannelAction::ChannelFeed => {
-        msg::reply(STATE.messages.to_vec(), exec::gas_available() - GAS_RESERVE, 0);
+        let message_vector: Vec<Message> = STATE.messages.collect();
+
+        debug!("Sending channel feed: {:?}", message_vector);
+
+        msg::reply(message_vector, exec::gas_available() - GAS_RESERVE, 0);
       }
       ChannelAction::Subscribe => {
         STATE.add_subscriber(source);
 
-        msg::reply("success", exec::gas_available() - GAS_RESERVE, 0);
+        debug!("Added a new subscriber: {:?}", source);
+
+        msg::reply(vec![success_msg], exec::gas_available() - GAS_RESERVE, 0);
       }
       ChannelAction::Unsubscribe => {
         STATE.remove_subscriber(source);
 
-        msg::reply("success", exec::gas_available() - GAS_RESERVE, 0);
+        debug!("Removed a subscriber: {:?}", source);
+
+        msg::reply(vec![success_msg], exec::gas_available() - GAS_RESERVE, 0);
       }
       ChannelAction::Post(text) => {
         if source != STATE.owner_id.unwrap() {
+          debug!("User not authorized to add a post: {:?}", source);
+
           msg::reply("unauthorized", 0, 0);
           return;
         }
 
         let message = Message {
-          channel_id: , // program id of this contract
           text: text,
           timestamp: bh,
         };
@@ -131,7 +155,9 @@ pub unsafe extern "C" fn handle() {
 
         STATE.add_message(message);
 
-        msg::reply("success", exec::gas_available() - GAS_RESERVE, 0);
+        debug!("Added a post: {:?}", message);
+
+        msg::reply(vec![success_msg], exec::gas_available() - GAS_RESERVE, 0);
       }
     }
 

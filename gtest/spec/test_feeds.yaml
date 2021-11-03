@@ -20,7 +20,7 @@ fixtures:
       - destination: 2
         payload:
           kind: custom
-          value: subcribe # is this an action?
+          value: subscribe # is this an action?
 
       - destination: 2
         payload:
@@ -29,46 +29,88 @@ fixtures:
             post: "Hello world"
 
       - destination: 2
-
-
-      - destination: 2
         payload:
           kind: custom
-          value: ping
-
-      - destination: 2
-        payload:
-          kind: custom
-          value: success
-
-      - destination: 2
-        payload:
-          kind: custom
-          value: I am just a message
+          value: channelFeed
 
     expected:
       - log:
-        - destination: 1000001 # gtest log sender
+        # Channel responds with Meta
+        - destination: 0
+          source:
+            kind: id
+            value: 2
+          payload:
+            kind: custom
+            value:
+              meta:
+                name: Test
+                owner_id: ???
+
+        # Router responds with [Channel] on success
+        - destination: 0
           source:
             kind: id
             value: 1
           payload:
             kind: custom
-            value: Initialized
+            value: [
+              channel:
+                id: ???
+                name: Test
+                owner_id: ???
+            ] # vec?
 
+        # Subscription success
         - destination: 0
           source:
             kind: id
-            value: 2
+            value: 1
           payload:
             kind: custom
-            value: pong
+            value: [
+              message:
+                text: success
+                timestamp: 0
+            ] # vec?
 
+        # Post sent to subscriber(s)
         - destination: 0
           source:
             kind: id
-            value: 2
+            value: 1
           payload:
             kind: custom
-            # gtest log sender in hex format
-            value: 41420f0000000000000000000000000000000000000000000000000000000000
+            value:
+              message:
+                text: "Hello world",
+                timestamp: ???
+
+        # Post success
+        - destination: 0
+          source:
+            kind: id
+            value: 1
+          payload:
+            kind: custom
+            value: [
+              message:
+                text: success,
+                timestamp: 0,
+            ] # vec?
+
+        # ChannelFeed
+        - destination: 0
+          source:
+            kind: id
+            value: 1
+          payload:
+            kind: custom
+            value: [
+              message:
+                text: "Channel Test was created by ???"
+                timestamp: ???,
+              message:
+                text: "Hello world!"
+                timestamp: ???
+            ] # vec?
