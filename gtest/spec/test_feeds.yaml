@@ -1,0 +1,74 @@
+title: Feeds
+
+programs:
+  - id: 1
+    path: target/wasm32-unknown-unknown/release/gear-feeds-router.wasm
+
+  - id: 2
+    path: target/wasm32-unknown-unknown/release/gear-feeds-channel.wasm
+
+fixtures:
+  - title: Test GEAR Feeds Contracts
+
+    messages:
+      - destination: 1
+        payload:
+          kind: custom
+          value:
+            register: 41420f0000000000000000000000000000000000000000000000000000000000 # id of 2?
+
+      - destination: 2
+        payload:
+          kind: custom
+          value: subcribe # is this an action?
+
+      - destination: 2
+        payload:
+          kind: custom
+          value:
+            post: "Hello world"
+
+      - destination: 2
+
+
+      - destination: 2
+        payload:
+          kind: custom
+          value: ping
+
+      - destination: 2
+        payload:
+          kind: custom
+          value: success
+
+      - destination: 2
+        payload:
+          kind: custom
+          value: I am just a message
+
+    expected:
+      - log:
+        - destination: 1000001 # gtest log sender
+          source:
+            kind: id
+            value: 1
+          payload:
+            kind: custom
+            value: Initialized
+
+        - destination: 0
+          source:
+            kind: id
+            value: 2
+          payload:
+            kind: custom
+            value: pong
+
+        - destination: 0
+          source:
+            kind: id
+            value: 2
+          payload:
+            kind: custom
+            # gtest log sender in hex format
+            value: 41420f0000000000000000000000000000000000000000000000000000000000
