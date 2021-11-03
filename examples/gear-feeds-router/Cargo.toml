@@ -1,5 +1,3 @@
-[workspace]
-
 [package]
 name = "gear-feeds-router"
 version = "0.1.0"
