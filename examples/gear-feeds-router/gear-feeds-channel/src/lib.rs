@@ -1,7 +1,7 @@
 #![no_std]
 
 extern crate alloc;
-use gstd::{exec, msg, prelude::*, ProgramId};
+use gstd::{debug, exec, msg, prelude::*, ProgramId};
 use rbl_circular_buffer::CircularBuffer;
 use codec::{Decode, Encode};
 use primitive_types::H256;
@@ -82,11 +82,11 @@ pub unsafe extern "C" fn init() {
   let bh: u32 = exec::block_height();
 
   let init_message = Message {
-    text: format!("Channel {} was created by {}", STATE.channel_name, STATE.owner_id).to_string(),
+    text: format!("Channel {} was created", STATE.channel_name).to_string(),
     timestamp: bh,
   };
 
-  STATE.add_message()
+  STATE.add_message(init_message);
 }
 
 #[no_mangle]
