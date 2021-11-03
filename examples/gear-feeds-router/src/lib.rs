@@ -38,6 +38,11 @@ enum RouterAction {
   Channel(H256),
 }
 
+#[derive(Debug, Decode, TypeInfo)]
+enum ChannelOutput {
+  Metadata(Meta),
+}
+
 #[derive(Debug, Encode, TypeInfo)]
 enum ChannelAction {
   Meta,
@@ -52,8 +57,8 @@ struct State {
 }
 
 impl State {
-  fn add_channel(&mut self, channel: Channel) {
-    unsafe { STATE.channels.insert(channel) };
+  fn add_channel(&mut self, channel: Channel) -> bool {
+    unsafe { STATE.channels.insert(channel) }
   }
 
   fn find_channel(&self, channel_id: H256) -> Channel {
@@ -90,7 +95,7 @@ async fn main() {
         // this will be changed when msg_async is fixed
         let reply = msg_async::send_and_wait_for_reply(channel_id, action.encode().as_ref(), GAS_LIMIT, 0).await;
 
-        let meta = Meta::decode(&mut reply.as_ref())
+        let ChannelOutput::Metadata(meta) = ChannelOutput::decode(&mut reply.as_ref())
           .expect("Unable to decode Meta of the channel");
 
         let channel = Channel {

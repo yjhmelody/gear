@@ -2,20 +2,26 @@ title: Feeds
 
 programs:
   - id: 1
-    path: target/wasm32-unknown-unknown/release/gear-feeds-router.wasm
+    path: target/wasm32-unknown-unknown/release/gear_feeds_router.wasm
 
   - id: 2
-    path: target/wasm32-unknown-unknown/release/gear-feeds-channel.wasm
+    path: target/wasm32-unknown-unknown/release/gear_feeds_channel.wasm
+    source:
+      kind: id
+      value: 9
 
 fixtures:
   - title: Test GEAR Feeds Contracts
 
     messages:
       - destination: 1
+        source:
+          kind: id
+          value: 9
         payload:
           kind: custom
           value:
-            register: 41420f0000000000000000000000000000000000000000000000000000000000 # id of 2?
+            register: 0x0200000000000000000000000000000000000000000000000000000000000000 # id of 2
 
       - destination: 2
         payload:
@@ -34,18 +40,30 @@ fixtures:
           value: channelFeed
 
     expected:
-      - log:
-        # Channel responds with Meta
-        - destination: 0
+      - step: 1
+        messages:
+          - destination: 2
+            source:
+              kind: id
+              value: 1
+            payload:
+              kind: custom
+              value: meta
+              
+      - step: 2
+         # Channel responds with Meta
+        messages: 
+        - destination: 1
           source:
             kind: id
             value: 2
           payload:
             kind: custom
             value:
-              meta:
+              metadata:
                 name: Test
-                owner_id: ???
+                owner_id: 0x0900000000000000000000000000000000000000000000000000000000000000
+        log: []
 
         # Router responds with [Channel] on success
         - destination: 0
@@ -54,12 +72,15 @@ fixtures:
             value: 1
           payload:
             kind: custom
-            value: [
-              channel:
-                id: ???
-                name: Test
-                owner_id: ???
-            ] # vec?
+            value: 
+              - channel:
+                  id: ???
+                  name: Test
+                  owner_id: ???
+              - channel:
+                  id: ???
+                  name: Test
+                  owner_id: ???
 
         # Subscription success
         - destination: 0

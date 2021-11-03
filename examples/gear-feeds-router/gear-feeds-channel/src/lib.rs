@@ -2,7 +2,7 @@
 
 extern crate alloc;
 use gstd::{debug, exec, msg, prelude::*, ProgramId};
-use rbl_circular_buffer::CircularBuffer;
+use circular_buffer::CircularBuffer;
 use codec::{Decode, Encode};
 use primitive_types::H256;
 use scale_info::TypeInfo;
@@ -11,7 +11,7 @@ gstd::metadata! {
     title: "GEAR Workshop Channel Contract",
     handle:
         input: ChannelAction,
-        output: Vec<Message>,
+        output: ChannelOutput,
 }
 
 #[derive(Debug, Encode, TypeInfo, Clone)]
@@ -35,11 +35,18 @@ enum ChannelAction {
   Post(String),
 }
 
+#[derive(Debug, Encode, TypeInfo)]
+enum ChannelOutput {
+  Metadata(Meta),
+  SingleMessage(Message),
+  MessageList(Vec<Message>),
+}
+
 struct State {
   channel_name: String,
   owner_id: Option<ProgramId>,
   subscribers: Vec<ProgramId>,
-  messages: CircularBuffer<Message>,
+  messages: Option<CircularBuffer<Message>>,
 }
 
 fn program_id_to_hex(program_id: ProgramId) -> H256 {
@@ -62,21 +69,23 @@ impl State {
   }
 
   fn add_message(&mut self, message: Message) {
-    self.messages.push(message);
+    self.messages.as_mut().unwrap().push(message);
   }
 }
 
 static mut STATE: State = State {
-  channel_name: "Test".to_string(),
+  channel_name: String::new(),
   owner_id: None,
   subscribers: Vec::new(),
-  messages: CircularBuffer::new(5),
+  messages: None,
 };
 
 const GAS_RESERVE: u64 = 10_000_000;
 
 #[no_mangle]
 pub unsafe extern "C" fn init() {
+  STATE.channel_name = "Test".to_string();
+  STATE.messages = Some(CircularBuffer::new(5));
   STATE.set_owner_id(msg::source());
 
   let bh: u32 = exec::block_height();
@@ -106,40 +115,38 @@ pub unsafe extern "C" fn handle() {
     match action {
       ChannelAction::Meta => {
         let meta = Meta {
-          name: STATE.channel_name,
+          name: STATE.channel_name.clone(),
           owner_id: program_id_to_hex(STATE.owner_id.unwrap()),
         };
 
         debug!("Sending meta information: {:?}", meta);
 
-        msg::reply(meta, exec::gas_available() - GAS_RESERVE, 0); // how to send meta?
+        msg::reply(ChannelOutput::Metadata(meta), exec::gas_available() - GAS_RESERVE, 0); // how to send meta?
       }
       ChannelAction::ChannelFeed => {
-        let message_vector: Vec<Message> = STATE.messages.collect();
+        let message_vector: Vec<Message> = STATE.messages.clone().unwrap().collect();
 
         debug!("Sending channel feed: {:?}", message_vector);
 
-        msg::reply(message_vector, exec::gas_available() - GAS_RESERVE, 0);
+        msg::reply(ChannelOutput::MessageList(message_vector), exec::gas_available() - GAS_RESERVE, 0);
       }
       ChannelAction::Subscribe => {
         STATE.add_subscriber(source);
 
         debug!("Added a new subscriber: {:?}", source);
 
-        msg::reply(vec![success_msg], exec::gas_available() - GAS_RESERVE, 0);
+        msg::reply(ChannelOutput::SingleMessage(success_msg), exec::gas_available() - GAS_RESERVE, 0);
       }
       ChannelAction::Unsubscribe => {
         STATE.remove_subscriber(source);
 
         debug!("Removed a subscriber: {:?}", source);
 
-        msg::reply(vec![success_msg], exec::gas_available() - GAS_RESERVE, 0);
+        msg::reply(ChannelOutput::SingleMessage(success_msg), exec::gas_available() - GAS_RESERVE, 0);
       }
       ChannelAction::Post(text) => {
         if source != STATE.owner_id.unwrap() {
           debug!("User not authorized to add a post: {:?}", source);
-
-          msg::reply("unauthorized", 0, 0);
           return;
         }
 
@@ -150,14 +157,14 @@ pub unsafe extern "C" fn handle() {
 
         // send out notification messages
         for subscriber_id in STATE.subscribers.iter() {
-          msg::send(*subscriber_id, message, 0, 0);
+          msg::send(*subscriber_id, message.clone(), 0, 0);
         }
 
-        STATE.add_message(message);
+        STATE.add_message(message.clone());
 
-        debug!("Added a post: {:?}", message);
+        debug!("Added a post: {:?}", &message);
 
-        msg::reply(vec![success_msg], exec::gas_available() - GAS_RESERVE, 0);
+        msg::reply(ChannelOutput::SingleMessage(success_msg), exec::gas_available() - GAS_RESERVE, 0);
       }
     }
 
