@@ -141,11 +141,7 @@ fn check_messages(
             .zip(messages.iter_mut())
             .enumerate()
             .for_each(|(position, (exp, msg))| {
-                let meta_type = if exp.init.unwrap_or(false) {
-                    MetaType::InitOutput
-                } else {
-                    MetaType::HandleOutput
-                };
+                let init_type = exp.init.unwrap_or(false);
 
                 if exp
                     .payload
@@ -156,6 +152,44 @@ fn check_messages(
                                 .iter()
                                 .find(|v| ProgramId::from(v.1) == msg.source())
                             {
+                                let meta_type = if init_type {
+                                    MetaType::InitOutput
+                                } else {
+                                    MetaType::HandleOutput
+                                };
+
+                                let path: String = v.0.replace(".wasm", ".meta.wasm");
+
+                                let json =
+                                    MetaData::Json(String::from_utf8(payload.to_bytes()).unwrap());
+
+                                let bytes = json
+                                    .convert(&path, &meta_type)
+                                    .expect("Unable to get bytes");
+
+                                *payload = PayloadVariant::Utf8(
+                                    bytes
+                                        .convert(&path, &meta_type)
+                                        .expect("Unable to get json")
+                                        .into_json(),
+                                );
+
+                                msg.payload = MetaData::CodecBytes(msg.payload.clone().into_raw())
+                                    .convert(&path, &meta_type)
+                                    .expect("Unable to get bytes")
+                                    .into_bytes()
+                                    .into();
+                            } else 
+                            if let Some(v) = progs_n_paths
+                                .iter()
+                                .find(|v| ProgramId::from(v.1) == msg.dest)
+                            {
+                                let meta_type = if init_type {
+                                    MetaType::InitInput
+                                } else {
+                                    MetaType::HandleInput
+                                };
+
                                 let path: String = v.0.replace(".wasm", ".meta.wasm");
 
                                 let json =
