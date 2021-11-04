@@ -46,10 +46,6 @@ enum ChannelOutput {
 #[derive(Debug, Encode, TypeInfo)]
 enum ChannelAction {
   Meta,
-  ChannelFeed,
-  Subscribe,
-  Unsubscribe,
-  Post(String),
 }
 
 struct State {
