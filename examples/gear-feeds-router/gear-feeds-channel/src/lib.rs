@@ -96,6 +96,7 @@ pub unsafe extern "C" fn init() {
   };
 
   STATE.add_message(init_message);
+  STATE.add_subscriber(STATE.owner_id.unwrap());
 }
 
 #[no_mangle]
@@ -157,7 +158,8 @@ pub unsafe extern "C" fn handle() {
 
         // send out notification messages
         for subscriber_id in STATE.subscribers.iter() {
-          msg::send(*subscriber_id, message.clone(), 0, 0);
+          debug!("Sending a notification to: {:?}", &subscriber_id);
+          msg::send(*subscriber_id, ChannelOutput::SingleMessage(message.clone()), 0, 0);
         }
 
         STATE.add_message(message.clone());
