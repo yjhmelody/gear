@@ -23,6 +23,7 @@ struct Message {
 #[derive(Debug, Encode, TypeInfo)]
 struct Meta {
   name: String,
+  description: String,
   owner_id: H256,
 }
 
@@ -44,6 +45,7 @@ enum ChannelOutput {
 
 struct State {
   channel_name: String,
+  channel_description: String,
   owner_id: Option<ProgramId>,
   subscribers: Vec<ProgramId>,
   messages: Option<CircularBuffer<Message>>,
@@ -75,6 +77,7 @@ impl State {
 
 static mut STATE: State = State {
   channel_name: String::new(),
+  channel_description: String::new(),
   owner_id: None,
   subscribers: Vec::new(),
   messages: None,
@@ -85,6 +88,7 @@ const GAS_RESERVE: u64 = 10_000_000;
 #[no_mangle]
 pub unsafe extern "C" fn init() {
   STATE.channel_name = "Test".to_string();
+  STATE.channel_description = "Test description".to_string();
   STATE.messages = Some(CircularBuffer::new(5));
   STATE.set_owner_id(msg::source());
 
@@ -117,6 +121,7 @@ pub unsafe extern "C" fn handle() {
       ChannelAction::Meta => {
         let meta = Meta {
           name: STATE.channel_name.clone(),
+          description: STATE.channel_description.clone(),
           owner_id: program_id_to_hex(STATE.owner_id.unwrap()),
         };
 
