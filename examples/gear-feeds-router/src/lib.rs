@@ -22,12 +22,14 @@ gstd::metadata! {
 struct Channel {
   id: H256,
   name: String,
+  description: String,
   owner_id: H256,
 }
 
 #[derive(Debug, Decode, TypeInfo)]
 struct Meta {
   name: String,
+  description: String,
   owner_id: H256,
 }
 
@@ -97,6 +99,7 @@ async fn main() {
         let channel = Channel {
           id: hex,
           name: meta.name,
+          description: meta.description,
           owner_id: meta.owner_id,
         };
 
