@@ -111,9 +111,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.44"
+version = "1.0.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61604a8f862e1d5c3229fdd78f8b02c68dcf73a4c4b05fd636d12240aaa242c1"
+checksum = "ee10e43ae4a853c0a3591d4e2ada1719e553be18199d9da9d4a83f5927c2f5c7"
 
 [[package]]
 name = "approx"
@@ -1276,9 +1276,12 @@ dependencies = [
 [[package]]
 name = "dlmalloc"
 version = "0.1.4"
-source = "git+https://github.com/nikvolf/dlmalloc-rs#74ecb8165d45f2a3d2ef7921c7371014911e9815"
+source = "git+https://github.com/gear-tech/dlmalloc-rust.git?rev=324d4c94de64e5e104b49938a3471331d9ad9c2b#324d4c94de64e5e104b49938a3471331d9ad9c2b"
 dependencies = [
  "libc",
+ "libc_print",
+ "static_assertions",
+ "str-buf",
 ]
 
 [[package]]
@@ -2896,6 +2899,14 @@ name = "libc"
 version = "0.2.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b2f96d100e1cf1929e7719b7edb3b90ab5298072638fccd77be9ce942ecdfce"
+
+[[package]]
+name = "libc_print"
+version = "0.1.16"
+source = "git+https://github.com/grishasobol/rust-libc-print.git#b300804809e7a5f1c8fab4d2d11bcea29217bc70"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "libloading"
@@ -7127,6 +7138,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "str-buf"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5273f1a92cb22cb10c25f1f6d7b7f7db8d9836f219947040842a37252326f64"
+
+[[package]]
 name = "strsim"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7365,6 +7382,7 @@ dependencies = [
 name = "tests-gas-limit"
 version = "0.1.0"
 dependencies = [
+ "env_logger 0.9.0",
  "gear-core",
  "gear-core-runner",
  "gstd",
@@ -7378,6 +7396,18 @@ name = "tests-node"
 version = "0.1.0"
 dependencies = [
  "env_logger 0.9.0",
+ "gear-core",
+ "gear-core-runner",
+ "gstd",
+ "parity-scale-codec",
+ "substrate-wasm-builder",
+ "tests-common",
+]
+
+[[package]]
+name = "tests-wait-wake"
+version = "0.1.0"
+dependencies = [
  "gear-core",
  "gear-core-runner",
  "gstd",
