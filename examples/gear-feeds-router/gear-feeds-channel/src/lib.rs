@@ -83,12 +83,12 @@ static mut STATE: State = State {
   messages: None,
 };
 
-const GAS_RESERVE: u64 = 10_000_000;
+const GAS_RESERVE: u64 = 100_000_000;
 
 #[no_mangle]
 pub unsafe extern "C" fn init() {
   STATE.channel_name = "Test".to_string();
-  STATE.channel_description = "Test description".to_string();
+  STATE.channel_description = "Test description more longest to test gas charge".to_string();
   STATE.messages = Some(CircularBuffer::new(5));
   STATE.set_owner_id(msg::source());
 
