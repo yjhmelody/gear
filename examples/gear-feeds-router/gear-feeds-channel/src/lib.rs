@@ -83,7 +83,7 @@ static mut STATE: State = State {
   messages: None,
 };
 
-const GAS_RESERVE: u64 = 10_000_000;
+const GAS_RESERVE: u64 = 100_000_000;
 
 #[no_mangle]
 pub unsafe extern "C" fn init() {
