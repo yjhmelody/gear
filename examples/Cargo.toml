@@ -3,6 +3,9 @@ resolver = "2"
 
 members = [
     "async",
+    "async-sign",
+    "async-sign/signed_message",
+    "async-sign/test_bob",
     "block-height",
     "chat",
     "chat/bot",
@@ -32,6 +35,7 @@ members = [
     "token-vendor/workshop-example",
     "gear-feeds-router",
     "gear-feeds-router/gear-feeds-channel",
+    "fungible-token",
 ]
 
 [profile.release]
