@@ -320,6 +320,17 @@ impl<E: Ext + 'static> SandboxEnvironment<E> {
             Ok(ReturnValue::Value(Value::I32(block_height as i32)))
         }
 
+        fn block_timestamp<E: Ext>(
+            ctx: &mut Runtime<E>,
+            _args: &[Value],
+        ) -> Result<ReturnValue, HostError> {
+            let block_timestamp = ctx
+                .ext
+                .with(|ext: &mut E| ext.block_timestamp())
+                .unwrap_or(0);
+            Ok(ReturnValue::Value(Value::I32(block_timestamp as i32)))
+        }
+
         fn reply<E: Ext>(ctx: &mut Runtime<E>, args: &[Value]) -> Result<ReturnValue, HostError> {
             let payload_ptr: i32 = match args[0] {
                 Value::I32(val) => val,
@@ -575,6 +586,7 @@ impl<E: Ext + 'static> SandboxEnvironment<E> {
         env_builder.add_host_func("env", "alloc", alloc);
         env_builder.add_host_func("env", "free", free);
         env_builder.add_host_func("env", "gr_block_height", block_height);
+        env_builder.add_host_func("env", "gr_block_timestamp", block_timestamp);
         env_builder.add_host_func("env", "gr_exit_code", exit_code);
         env_builder.add_host_func("env", "gr_send", send);
         env_builder.add_host_func("env", "gr_send_commit", send_commit);
@@ -600,26 +612,30 @@ impl<E: Ext + 'static> SandboxEnvironment<E> {
             trap_reason: None,
         };
 
-        let instance = Instance::new(binary, &env_builder, &mut runtime).unwrap();
-
-        let result = self.run_inner(instance, memory_pages, memory, move |mut instance| {
-            let result = instance.invoke(entry_point, &[], &mut runtime);
-            if let Err(_e) = &result {
-                if let Some(trap) = runtime.trap_reason {
-                    if funcs::is_exit_trap(&trap.to_string()) {
-                        // We don't propagate a trap when exit
-                        return Ok(());
-                    }
+        let result: anyhow::Result<(), anyhow::Error> =
+            match Instance::new(binary, &env_builder, &mut runtime) {
+                Ok(instance) => {
+                    self.run_inner(instance, memory_pages, memory, move |mut instance| {
+                        let result = instance.invoke(entry_point, &[], &mut runtime);
+                        if let Err(_e) = &result {
+                            if let Some(trap) = runtime.trap_reason {
+                                if funcs::is_exit_trap(&trap.to_string()) {
+                                    // We don't propagate a trap when exit
+                                    return Ok(());
+                                }
+                            }
+                        }
+                        result.map(|_| ()).map_err(|err| {
+                            if let Some(trap) = runtime.trap_reason {
+                                return anyhow::format_err!("{:?}", trap);
+                            } else {
+                                return anyhow::format_err!("{:?}", err);
+                            }
+                        })
+                    })
                 }
-            }
-            result.map(|_| ()).map_err(|err| {
-                if let Some(trap) = runtime.trap_reason {
-                    return anyhow::format_err!("{:?}", trap);
-                } else {
-                    return anyhow::format_err!("{:?}", err);
-                }
-            })
-        });
+                Err(err) => Err(anyhow::format_err!("{:?}", err)),
+            };
 
         let ext = self.ext.unset();
 
