@@ -12,6 +12,8 @@ gstd::metadata! {
     handle:
         input: ChannelAction,
         output: ChannelOutput,
+    state:
+      output: Vec<Message>,
 }
 
 #[derive(Debug, Encode, TypeInfo, Clone)]
@@ -43,6 +45,7 @@ enum ChannelOutput {
   MessageList(Vec<Message>),
 }
 
+#[derive(Clone)]
 struct State {
   channel_name: String,
   channel_description: String,
@@ -175,4 +178,14 @@ pub unsafe extern "C" fn handle() {
       }
     }
 
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn meta_state() -> *mut [i32; 2] {
+    let messages: Vec<Message> = STATE.clone().messages.map(|v| v.into_iter().collect()).unwrap_or_default();
+    let encoded = messages.encode();
+    let result = gstd::meta::to_wasm_ptr(&encoded[..]);
+    core::mem::forget(encoded);
+
+    result
 }
