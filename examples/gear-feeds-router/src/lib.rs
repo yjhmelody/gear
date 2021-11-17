@@ -50,12 +50,12 @@ async fn main() {
     .await
     .expect("ROUTER: Error processing async message");
 
+    msg::reply((), 0, 0);
+
     debug!(
         "ROUTER: Successfully added channel\nOwner: {:?}\nName: {:?}",
         register.0, meta.name
     );
-
-    msg::reply((), 0, 0);
 }
 
 #[no_mangle]
