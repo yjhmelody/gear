@@ -575,7 +575,6 @@ name = "gear-feeds-router"
 version = "0.1.0"
 dependencies = [
  "gstd",
- "gstd-async",
  "parity-scale-codec",
  "primitive-types",
  "scale-info",

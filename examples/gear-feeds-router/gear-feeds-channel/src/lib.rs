@@ -1,6 +1,6 @@
 #![no_std]
 
-use gstd::{debug, exec, msg, prelude::*, ProgramId};
+use gstd::{debug, exec, msg, prelude::*, ActorId};
 
 use circular_buffer::CircularBuffer;
 use codec::{Decode, Encode};
@@ -54,15 +54,15 @@ struct Meta {
 
 #[derive(Clone)]
 struct State {
-    owner_id: Option<ProgramId>,
+    owner_id: Option<ActorId>,
     name: Option<String>,
     description: Option<String>,
-    subscribers: Vec<ProgramId>,
+    subscribers: Vec<ActorId>,
     messages: Option<CircularBuffer<Message>>,
 }
 
 impl State {
-    fn set_owner_id(&mut self, id: ProgramId) {
+    fn set_owner_id(&mut self, id: ActorId) {
         if self.owner_id.is_none() {
             self.owner_id = Some(id);
         } else {
@@ -86,11 +86,11 @@ impl State {
         }
     }
 
-    fn add_subscriber(&mut self, id: ProgramId) {
+    fn add_subscriber(&mut self, id: ActorId) {
         self.subscribers.push(id);
     }
 
-    fn remove_subscriber(&mut self, id: ProgramId) {
+    fn remove_subscriber(&mut self, id: ActorId) {
         self.subscribers.retain(|v| *v != id);
     }
 
@@ -98,6 +98,10 @@ impl State {
         self.messages
             .get_or_insert_with(|| CircularBuffer::new(5))
             .push(message);
+    }
+
+    fn name(&self) -> String {
+        self.name.clone().unwrap_or(String::from("UNKNOWN"))
     }
 }
 
@@ -115,29 +119,33 @@ pub unsafe extern "C" fn init() {
     STATE.set_name("Channel-Coolest-Name");
     STATE.set_description("Channel-Coolest-Description");
 
-    let init_message = Message::new(format!("Channel {:?} was created", STATE.name));
+    let init_message = Message::new(format!("Channel {:?} was created", STATE.name()));
 
     STATE.add_message(init_message);
     STATE.add_subscriber(STATE.owner_id.unwrap());
 
-    debug!("Channel {:?} initialized successfully!", STATE.name);
+    debug!("Channel {:?} initialized successfully!", STATE.name());
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn handle() {
-    let action: ChannelAction = msg::load()
-        .unwrap_or_else(|_| panic!("CHANNEL {:?}: Unable to decode Channel Action", STATE.name));
+    let action: ChannelAction = msg::load().unwrap_or_else(|_| {
+        panic!(
+            "CHANNEL {:?}: Unable to decode Channel Action",
+            STATE.name()
+        )
+    });
 
-    let source: ProgramId = msg::source();
+    let source: ActorId = msg::source();
 
-    debug!("CHANNEL {:?}: Received action: {:?}", STATE.name, action);
+    debug!("CHANNEL {:?}: Received action: {:?}", STATE.name(), action);
 
     match action {
         ChannelAction::Meta => {
             let meta = Meta {
                 name: STATE.name.clone().unwrap_or_default(),
                 description: STATE.description.clone().unwrap_or_default(),
-                owner_id: H256(STATE.owner_id.unwrap().0),
+                owner_id: H256(STATE.owner_id.unwrap().into()),
             };
 
             msg::reply(
@@ -146,26 +154,26 @@ pub unsafe extern "C" fn handle() {
                 0,
             );
 
-            debug!("CHANNEL {:?}: Meta sent", STATE.name)
+            debug!("CHANNEL {:?}: Meta sent", STATE.name())
         }
         ChannelAction::Subscribe => {
             STATE.add_subscriber(source);
 
             msg::reply((), 0, 0);
 
-            debug!("CHANNEL {:?}: Subscriber added", STATE.name)
+            debug!("CHANNEL {:?}: Subscriber added", STATE.name())
         }
         ChannelAction::Unsubscribe => {
             STATE.remove_subscriber(source);
 
             msg::reply((), 0, 0);
 
-            debug!("CHANNEL {:?}: Subscriber removed", STATE.name)
+            debug!("CHANNEL {:?}: Subscriber removed", STATE.name())
         }
         ChannelAction::Post(text) => {
             if let Some(owner_id) = STATE.owner_id {
                 if owner_id != source {
-                    panic!("CHANNEL {:?}: Poster is not an owner", STATE.name)
+                    panic!("CHANNEL {:?}: Poster is not an owner", STATE.name())
                 }
 
                 let message = Message::new(text);
@@ -176,11 +184,11 @@ pub unsafe extern "C" fn handle() {
                     msg::send(*id, ChannelOutput::SingleMessage(message.clone()), 0, 0);
                 }
 
-                debug!("Added a post: {:?}", message);
-
                 msg::reply((), 0, 0);
+
+                debug!("Added a post: {:?}", message);
             } else {
-                panic!("CHANNEL {:?}: Owner was not set", STATE.name)
+                panic!("CHANNEL {:?}: Owner was not set", STATE.name())
             }
         }
     }
@@ -194,7 +202,7 @@ pub unsafe extern "C" fn meta_state() -> *mut [i32; 2] {
         .map(|v| v.into_iter().collect())
         .unwrap_or_default();
     let encoded = messages.encode();
-    let result = gstd::meta::to_wasm_ptr(&encoded[..]);
+    let result = gstd::macros::util::to_wasm_ptr(&encoded[..]);
     core::mem::forget(encoded);
 
     result

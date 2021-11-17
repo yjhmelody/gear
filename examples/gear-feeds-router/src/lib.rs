@@ -1,8 +1,7 @@
 #![no_std]
 #![feature(const_btree_new)]
 
-use gstd::{debug, exec, msg, prelude::*, ProgramId};
-use gstd_async::msg as msg_async;
+use gstd::{debug, exec, msg, prelude::*, ActorId};
 
 use codec::{Decode, Encode};
 use primitive_types::H256;
@@ -34,26 +33,22 @@ struct Meta {
     _owner_id: H256,
 }
 
-#[gstd_async::main]
+#[gstd::async_main]
 async fn main() {
     let register: Register = msg::load().expect("ROUTER: Unable to decode Register");
 
     debug!("ROUTER: Starting registering {:?}", register.0);
 
-    let channel_id = ProgramId(register.0.to_fixed_bytes());
-    let channel_action = ChannelAction::Meta.encode();
+    let channel_id: ActorId = register.0.into();
 
-    let reply = msg_async::send_and_wait_for_reply(
+    let ChannelOutput::Metadata(meta) = msg::send_and_wait_for_reply(
         channel_id,
-        channel_action.as_ref(),
+        ChannelAction::Meta,
         exec::gas_available() - 100_000_000,
         0,
     )
     .await
     .expect("ROUTER: Error processing async message");
-
-    let ChannelOutput::Metadata(meta) =
-        ChannelOutput::decode(&mut reply.as_ref()).expect("Unable to decode Meta of the channel");
 
     debug!(
         "ROUTER: Successfully added channel\nOwner: {:?}\nName: {:?}",
