@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(const_btree_new)]
 
 use gstd::{debug, exec, msg, prelude::*, ActorId};
 
