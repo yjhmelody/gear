@@ -1,7 +1,7 @@
 #![no_std]
 
-extern crate alloc;
 use gstd::{debug, exec, msg, prelude::*, ProgramId};
+
 use circular_buffer::CircularBuffer;
 use codec::{Decode, Encode};
 use primitive_types::H256;
@@ -16,173 +16,183 @@ gstd::metadata! {
       output: Vec<Message>,
 }
 
-#[derive(Debug, Encode, TypeInfo, Clone)]
+#[derive(Debug, Decode, TypeInfo)]
+enum ChannelAction {
+    Meta,
+    Subscribe,
+    Unsubscribe,
+    Post(String),
+}
+
+#[derive(Encode, TypeInfo)]
+enum ChannelOutput {
+    Metadata(Meta),
+    SingleMessage(Message),
+}
+
+#[derive(Clone, Debug, Encode, TypeInfo)]
 struct Message {
     text: String,
     timestamp: u32,
 }
 
+impl Message {
+    fn new(text: String) -> Self {
+        Self {
+            text,
+            timestamp: exec::block_height(),
+        }
+    }
+}
+
 #[derive(Debug, Encode, TypeInfo)]
 struct Meta {
-  name: String,
-  description: String,
-  owner_id: H256,
-}
-
-#[derive(Debug, Decode, TypeInfo)]
-enum ChannelAction {
-  Meta,
-  ChannelFeed,
-  Subscribe,
-  Unsubscribe,
-  Post(String),
-}
-
-#[derive(Debug, Encode, TypeInfo)]
-enum ChannelOutput {
-  Metadata(Meta),
-  SingleMessage(Message),
-  MessageList(Vec<Message>),
+    name: String,
+    description: String,
+    owner_id: H256,
 }
 
 #[derive(Clone)]
 struct State {
-  channel_name: String,
-  channel_description: String,
-  owner_id: Option<ProgramId>,
-  subscribers: Vec<ProgramId>,
-  messages: Option<CircularBuffer<Message>>,
-}
-
-fn program_id_to_hex(program_id: ProgramId) -> H256 {
-  let ProgramId(bytes) = program_id;
-  return H256::from(bytes);
+    owner_id: Option<ProgramId>,
+    name: Option<String>,
+    description: Option<String>,
+    subscribers: Vec<ProgramId>,
+    messages: Option<CircularBuffer<Message>>,
 }
 
 impl State {
-  fn set_owner_id(&mut self, user_id: ProgramId) {
-    self.owner_id = Some(user_id);
-  }
+    fn set_owner_id(&mut self, id: ProgramId) {
+        if self.owner_id.is_none() {
+            self.owner_id = Some(id);
+        } else {
+            panic!("Owner ID for the channel was already set!")
+        }
+    }
 
-  fn add_subscriber(&mut self, subscriber_id: ProgramId) {
-    self.subscribers.push(subscriber_id);
-  }
+    fn set_name(&mut self, name: &'static str) {
+        if self.name.is_none() {
+            self.name = Some(String::from(name));
+        } else {
+            panic!("Name for the channel was already set!")
+        }
+    }
 
-  fn remove_subscriber(&mut self, subscriber_id: ProgramId) {
-    let index = self.subscribers.iter().position(|x| *x == subscriber_id).expect("Subscriber doesn't exist.");
-    self.subscribers.remove(index);
-  }
+    fn set_description(&mut self, desc: &'static str) {
+        if self.description.is_none() {
+            self.description = Some(String::from(desc));
+        } else {
+            panic!("Description for the channel was already set!")
+        }
+    }
 
-  fn add_message(&mut self, message: Message) {
-    self.messages.as_mut().unwrap().push(message);
-  }
+    fn add_subscriber(&mut self, id: ProgramId) {
+        self.subscribers.push(id);
+    }
+
+    fn remove_subscriber(&mut self, id: ProgramId) {
+        self.subscribers.retain(|v| *v != id);
+    }
+
+    fn add_message(&mut self, message: Message) {
+        self.messages
+            .get_or_insert_with(|| CircularBuffer::new(5))
+            .push(message);
+    }
 }
 
 static mut STATE: State = State {
-  channel_name: String::new(),
-  channel_description: String::new(),
-  owner_id: None,
-  subscribers: Vec::new(),
-  messages: None,
+    name: None,
+    description: None,
+    owner_id: None,
+    subscribers: Vec::new(),
+    messages: None,
 };
-
-const GAS_RESERVE: u64 = 100_000_000;
 
 #[no_mangle]
 pub unsafe extern "C" fn init() {
-  STATE.channel_name = "Test".to_string();
-  STATE.channel_description = "Test description".to_string();
-  STATE.messages = Some(CircularBuffer::new(5));
-  STATE.set_owner_id(msg::source());
+    STATE.set_owner_id(msg::source());
+    STATE.set_name("Channel-Coolest-Name");
+    STATE.set_description("Channel-Coolest-Description");
 
-  let bh: u32 = exec::block_height();
+    let init_message = Message::new(format!("Channel {:?} was created", STATE.name));
 
-  let init_message = Message {
-    text: format!("Channel {} was created", STATE.channel_name).to_string(),
-    timestamp: bh,
-  };
+    STATE.add_message(init_message);
+    STATE.add_subscriber(STATE.owner_id.unwrap());
 
-  STATE.add_message(init_message);
-  STATE.add_subscriber(STATE.owner_id.unwrap());
+    debug!("Channel {:?} initialized successfully!", STATE.name);
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn handle() {
-    let action: ChannelAction = msg::load().expect("Unable to decode Channel Action");
-    let bh: u32 = exec::block_height();
+    let action: ChannelAction = msg::load()
+        .unwrap_or_else(|_| panic!("CHANNEL {:?}: Unable to decode Channel Action", STATE.name));
 
     let source: ProgramId = msg::source();
 
-    debug!("Received action: {:?}", action);
-
-    let success_msg = Message {
-      text: "success".to_string(),
-      timestamp: 0,
-    };
+    debug!("CHANNEL {:?}: Received action: {:?}", STATE.name, action);
 
     match action {
-      ChannelAction::Meta => {
-        let meta = Meta {
-          name: STATE.channel_name.clone(),
-          description: STATE.channel_description.clone(),
-          owner_id: program_id_to_hex(STATE.owner_id.unwrap()),
-        };
+        ChannelAction::Meta => {
+            let meta = Meta {
+                name: STATE.name.clone().unwrap_or_default(),
+                description: STATE.description.clone().unwrap_or_default(),
+                owner_id: H256(STATE.owner_id.unwrap().0),
+            };
 
-        debug!("Sending meta information: {:?}", meta);
+            msg::reply(
+                ChannelOutput::Metadata(meta),
+                exec::gas_available() - 100_000_000,
+                0,
+            );
 
-        msg::reply(ChannelOutput::Metadata(meta), exec::gas_available() - GAS_RESERVE, 0); // how to send meta?
-      }
-      ChannelAction::ChannelFeed => {
-        let message_vector: Vec<Message> = STATE.messages.clone().unwrap().collect();
-
-        debug!("Sending channel feed: {:?}", message_vector);
-
-        msg::reply(ChannelOutput::MessageList(message_vector), exec::gas_available() - GAS_RESERVE, 0);
-      }
-      ChannelAction::Subscribe => {
-        STATE.add_subscriber(source);
-
-        debug!("Added a new subscriber: {:?}", source);
-
-        msg::reply(ChannelOutput::SingleMessage(success_msg), exec::gas_available() - GAS_RESERVE, 0);
-      }
-      ChannelAction::Unsubscribe => {
-        STATE.remove_subscriber(source);
-
-        debug!("Removed a subscriber: {:?}", source);
-
-        msg::reply(ChannelOutput::SingleMessage(success_msg), exec::gas_available() - GAS_RESERVE, 0);
-      }
-      ChannelAction::Post(text) => {
-        if source != STATE.owner_id.unwrap() {
-          debug!("User not authorized to add a post: {:?}", source);
-          return;
+            debug!("CHANNEL {:?}: Meta sent", STATE.name)
         }
+        ChannelAction::Subscribe => {
+            STATE.add_subscriber(source);
 
-        let message = Message {
-          text: text,
-          timestamp: bh,
-        };
+            msg::reply((), 0, 0);
 
-        // send out notification messages
-        for subscriber_id in STATE.subscribers.iter() {
-          debug!("Sending a notification to: {:?}", &subscriber_id);
-          msg::send(*subscriber_id, ChannelOutput::SingleMessage(message.clone()), 0, 0);
+            debug!("CHANNEL {:?}: Subscriber added", STATE.name)
         }
+        ChannelAction::Unsubscribe => {
+            STATE.remove_subscriber(source);
 
-        STATE.add_message(message.clone());
+            msg::reply((), 0, 0);
 
-        debug!("Added a post: {:?}", &message);
+            debug!("CHANNEL {:?}: Subscriber removed", STATE.name)
+        }
+        ChannelAction::Post(text) => {
+            if let Some(owner_id) = STATE.owner_id {
+                if owner_id != source {
+                    panic!("CHANNEL {:?}: Poster is not an owner", STATE.name)
+                }
 
-        msg::reply(ChannelOutput::SingleMessage(success_msg), exec::gas_available() - GAS_RESERVE, 0);
-      }
+                let message = Message::new(text);
+
+                STATE.add_message(message.clone());
+
+                for id in STATE.subscribers.iter() {
+                    msg::send(*id, ChannelOutput::SingleMessage(message.clone()), 0, 0);
+                }
+
+                debug!("Added a post: {:?}", message);
+
+                msg::reply((), 0, 0);
+            } else {
+                panic!("CHANNEL {:?}: Owner was not set", STATE.name)
+            }
+        }
     }
-
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn meta_state() -> *mut [i32; 2] {
-    let messages: Vec<Message> = STATE.clone().messages.map(|v| v.into_iter().collect()).unwrap_or_default();
+    let messages: Vec<Message> = STATE
+        .messages
+        .clone()
+        .map(|v| v.into_iter().collect())
+        .unwrap_or_default();
     let encoded = messages.encode();
     let result = gstd::meta::to_wasm_ptr(&encoded[..]);
     core::mem::forget(encoded);
