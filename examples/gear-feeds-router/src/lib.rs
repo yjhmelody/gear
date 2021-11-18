@@ -33,7 +33,7 @@ struct Meta {
     owner_id: H256,
 }
 
-#[derive(Encode)]
+#[derive(Encode, TypeInfo)]
 struct Channel {
     id: H256,
     name: String,
