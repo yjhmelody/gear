@@ -70,8 +70,8 @@ async fn main() {
     msg::reply(Channel::new(register.0, meta.clone()), 0, 0);
 
     debug!(
-        "ROUTER: Successfully added channel\nOwner: {:?}\nName: {:?}",
-        register.0, meta.name
+        "ROUTER: Successfully added channel\nName: {:?}\nAddress: {:?}\nOwner: {:?}",
+        meta.name, register.0, meta.owner_id
     );
 }
 
