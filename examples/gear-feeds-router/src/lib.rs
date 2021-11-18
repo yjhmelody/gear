@@ -9,8 +9,15 @@ use scale_info::TypeInfo;
 gstd::metadata! {
   title: "GEAR Workshop Router Contract",
   handle:
-      input: Register,
-      output: Channel,
+      input: RouterAction,
+      output: Vec<Channel>,
+}
+
+#[derive(Debug, Decode, TypeInfo)]
+enum RouterAction {
+    Register(H256),
+    Channels,
+    Channel(H256),
 }
 
 #[derive(Decode, TypeInfo)]
@@ -54,25 +61,30 @@ impl Channel {
 
 #[gstd::async_main]
 async fn main() {
-    let register: Register = msg::load().expect("ROUTER: Unable to decode Register");
+    let register: RouterAction = msg::load().expect("ROUTER: Unable to decode RouterAction");
 
-    debug!("ROUTER: Starting registering {:?}", register.0);
+    match register {
+        RouterAction::Register(hex) => {
+            debug!("ROUTER: Starting registering {:?}", hex);
 
-    let ChannelOutput::Metadata(meta) = msg::send_and_wait_for_reply(
-        register.0.into(),
-        ChannelAction::Meta,
-        exec::gas_available() - 100_000_000,
-        0,
-    )
-    .await
-    .expect("ROUTER: Error processing async message");
+            let ChannelOutput::Metadata(meta) = msg::send_and_wait_for_reply(
+                hex.into(),
+                ChannelAction::Meta,
+                exec::gas_available() - 100_000_000,
+                0,
+            )
+            .await
+            .expect("ROUTER: Error processing async message");
 
-    msg::reply(Channel::new(register.0, meta.clone()), 0, 0);
+            msg::reply(vec![Channel::new(hex, meta.clone())], 0, 0);
 
-    debug!(
-        "ROUTER: Successfully added channel\nName: {:?}\nAddress: {:?}\nOwner: {:?}",
-        meta.name, register.0, meta.owner_id
-    );
+            debug!(
+                "ROUTER: Successfully added channel\nName: {:?}\nAddress: {:?}\nOwner: {:?}",
+                meta.name, hex, meta.owner_id
+            );
+        }
+        _ => debug!("Got another action"),
+    }
 }
 
 #[no_mangle]
