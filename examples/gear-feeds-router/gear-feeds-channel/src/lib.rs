@@ -101,7 +101,7 @@ impl State {
     }
 
     fn name(&self) -> String {
-        self.name.clone().unwrap_or(String::from("UNKNOWN"))
+        self.name.clone().unwrap_or_else(|| String::from("UNKNOWN"))
     }
 }
 

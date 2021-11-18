@@ -1,6 +1,6 @@
 #![no_std]
 
-use gstd::{debug, exec, msg, prelude::*, ActorId};
+use gstd::{debug, exec, msg, prelude::*};
 
 use codec::{Decode, Encode};
 use primitive_types::H256;
@@ -10,6 +10,7 @@ gstd::metadata! {
   title: "GEAR Workshop Router Contract",
   handle:
       input: Register,
+      output: Channel,
 }
 
 #[derive(Decode, TypeInfo)]
@@ -25,11 +26,30 @@ enum ChannelOutput {
     Metadata(Meta),
 }
 
-#[derive(Decode, TypeInfo)]
+#[derive(Clone, Decode, TypeInfo)]
 struct Meta {
     name: String,
-    _description: String,
-    _owner_id: H256,
+    description: String,
+    owner_id: H256,
+}
+
+#[derive(Encode)]
+struct Channel {
+    id: H256,
+    name: String,
+    owner_id: H256,
+    description: String,
+}
+
+impl Channel {
+    fn new(id: H256, meta: Meta) -> Self {
+        Self {
+            id,
+            name: meta.name,
+            owner_id: meta.owner_id,
+            description: meta.description,
+        }
+    }
 }
 
 #[gstd::async_main]
@@ -38,10 +58,8 @@ async fn main() {
 
     debug!("ROUTER: Starting registering {:?}", register.0);
 
-    let channel_id: ActorId = register.0.into();
-
     let ChannelOutput::Metadata(meta) = msg::send_and_wait_for_reply(
-        channel_id,
+        register.0.into(),
         ChannelAction::Meta,
         exec::gas_available() - 100_000_000,
         0,
@@ -49,7 +67,7 @@ async fn main() {
     .await
     .expect("ROUTER: Error processing async message");
 
-    msg::reply((), 0, 0);
+    msg::reply(Channel::new(register.0, meta.clone()), 0, 0);
 
     debug!(
         "ROUTER: Successfully added channel\nOwner: {:?}\nName: {:?}",
