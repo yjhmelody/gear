@@ -9,19 +9,22 @@ use scale_info::TypeInfo;
 gstd::metadata! {
   title: "GEAR Workshop Router Contract",
   handle:
-      input: RouterAction,
-      output: Vec<Channel>,
-}
-
-#[derive(Debug, Decode, TypeInfo)]
-enum RouterAction {
-    Register(H256),
-    Channels,
-    Channel(H256),
+      input: Register,
+      output: Channel,
 }
 
 #[derive(Decode, TypeInfo)]
-struct Register(H256);
+struct Register {
+    address: H256,
+}
+
+#[derive(Encode, TypeInfo)]
+struct Channel {
+    id: H256,
+    name: String,
+    owner_id: H256,
+    description: String,
+}
 
 #[derive(Encode, TypeInfo)]
 enum ChannelAction {
@@ -40,14 +43,6 @@ struct Meta {
     owner_id: H256,
 }
 
-#[derive(Encode, TypeInfo)]
-struct Channel {
-    id: H256,
-    name: String,
-    owner_id: H256,
-    description: String,
-}
-
 impl Channel {
     fn new(id: H256, meta: Meta) -> Self {
         Self {
@@ -61,30 +56,25 @@ impl Channel {
 
 #[gstd::async_main]
 async fn main() {
-    let register: RouterAction = msg::load().expect("ROUTER: Unable to decode RouterAction");
+    let register: Register = msg::load().expect("ROUTER: Unable to decode Register");
 
-    match register {
-        RouterAction::Register(hex) => {
-            debug!("ROUTER: Starting registering {:?}", hex);
+    debug!("ROUTER: Starting registering {:?}", register.address);
 
-            let ChannelOutput::Metadata(meta) = msg::send_and_wait_for_reply(
-                hex.into(),
-                ChannelAction::Meta,
-                exec::gas_available() - 100_000_000,
-                0,
-            )
-            .await
-            .expect("ROUTER: Error processing async message");
+    let ChannelOutput::Metadata(meta) = msg::send_and_wait_for_reply(
+        register.address.into(),
+        ChannelAction::Meta,
+        exec::gas_available() - 100_000_000,
+        0,
+    )
+    .await
+    .expect("ROUTER: Error processing async message");
 
-            msg::reply(vec![Channel::new(hex, meta.clone())], 0, 0);
+    msg::reply(Channel::new(register.address, meta.clone()), 0, 0);
 
-            debug!(
-                "ROUTER: Successfully added channel\nName: {:?}\nAddress: {:?}\nOwner: {:?}",
-                meta.name, hex, meta.owner_id
-            );
-        }
-        _ => debug!("Got another action"),
-    }
+    debug!(
+        "ROUTER: Successfully added channel\nName: {:?}\nAddress: {:?}\nOwner: {:?}",
+        meta.name, register.address, meta.owner_id
+    );
 }
 
 #[no_mangle]
