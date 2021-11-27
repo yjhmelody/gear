@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use super::allocation::Allocation;
 use super::memory::Memory;

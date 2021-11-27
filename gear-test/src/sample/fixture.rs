@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use super::message::Message;
 use super::step::Step;

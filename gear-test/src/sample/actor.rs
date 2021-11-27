@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use super::address::{ChainAddress, Keyword};
 use super::message::Message;
@@ -25,7 +25,9 @@ pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Act
     ActorInput::deserialize(deserializer).map(|v| v.into())
 }
 
-pub fn deserialize_option<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Vec<Actor>>, D::Error> {
+pub fn deserialize_option<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Vec<Actor>>, D::Error> {
     ActorInput::deserialize(deserializer).map(|v| Some(v.into()))
 }
 
@@ -34,6 +36,15 @@ pub fn deserialize_option<'de, D: Deserializer<'de>>(deserializer: D) -> Result<
 pub enum Actor {
     Program(Program),
     User(User),
+}
+
+impl Actor {
+    pub fn get_bind(&self) -> (Option<Keyword>, ChainAddress) {
+        match self {
+            Self::Program(v) => (v.bind.clone(), v.address.clone()),
+            Self::User(v) => (v.bind.clone(), v.address.clone()),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]

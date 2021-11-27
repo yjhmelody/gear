@@ -1,7 +1,6 @@
-use serde::{Serialize, Deserialize, Deserializer, de};
-use serde_yaml::Value;
 use hex::FromHex;
-
+use serde::{de, Deserialize, Deserializer, Serialize};
+use serde_yaml::Value;
 
 use super::address::Address;
 

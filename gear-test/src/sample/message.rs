@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use super::address::Address;
 use super::payload::PayloadInput;
@@ -39,15 +39,21 @@ pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Mes
     MessageInput::deserialize(deserializer).map(|v| v.into())
 }
 
-pub fn deserialize_init<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Message>, D::Error> {
+pub fn deserialize_init<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<Message>, D::Error> {
     InitMessageInput::deserialize(deserializer).map(|v| v.into())
 }
 
-pub fn deserialize_option<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Vec<Message>>, D::Error> {
+pub fn deserialize_option<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Vec<Message>>, D::Error> {
     Option::<MessageInput>::deserialize(deserializer).map(|v| v.map(|x| x.into()))
 }
 
-pub fn deserialize_init_option<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Vec<Message>>, D::Error> {
+pub fn deserialize_init_option<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Vec<Message>>, D::Error> {
     Option::<InitMessageInput>::deserialize(deserializer).map(|v| v.map(|x| x.into()))
 }
 

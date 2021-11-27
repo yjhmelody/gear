@@ -1,0 +1,19 @@
+title: Test title
+
+purpose: Test purpose
+
+description: Test description
+
+actor:
+  bind: pinger
+  address:
+    id: 1
+  binary: target/wasm32-unknown-unknown/release/demo_async_multisig.wasm
+  message:
+    payload:
+      hello: world
+
+fixtures:
+- name: Some fixture
+  step:
+    number: 10
