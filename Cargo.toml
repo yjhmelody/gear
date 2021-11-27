@@ -24,6 +24,7 @@ members = [
     "core-runner",
     "galloc",
     "gcore",
+    "gear-test",
     "gstd",
     "gtest",
     "node",
