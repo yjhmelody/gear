@@ -25,7 +25,7 @@ pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Ste
     StepInput::deserialize(deserializer).map(|v| v.into())
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Step {
     pub number: Option<u8>,
     pub immortal: Option<bool>,

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 
 use super::address::{ChainAddress, Keyword};
-use super::message::Message;
+use super::message::InitMessage;
 
 pub type BinaryPath = String;
 
@@ -52,7 +52,7 @@ pub struct Program {
     pub bind: Option<Keyword>,
     pub address: ChainAddress,
     pub binary: BinaryPath,
-    pub message: Option<Message>,
+    pub message: Option<InitMessage>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]

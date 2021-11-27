@@ -12,6 +12,7 @@ use crate::sample::{
     allocation::{AllocationExpectationKind, AllocationFilter},
 };
 
+#[derive(Debug, PartialEq)]
 pub struct Test {
     pub title: String,
     pub purpose: String,
@@ -21,6 +22,7 @@ pub struct Test {
     pub fixtures: Vec<Fixture>,
 }
 
+#[derive(Clone, PartialEq)]
 pub struct WasmProgram {
     pub path: String,
     pub code: Vec<u8>,
@@ -34,10 +36,36 @@ impl WasmProgram {
     }
 }
 
+use std::fmt;
+
+impl fmt::Debug for WasmProgram {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("WasmProgram")
+         .field("path", &self.path)
+         .field("code", &"Some wasm code")
+         .field("init", &self.init)
+         .finish()
+    }
+}
+
 use sample::actor::Actor;
+use sample::message::OverridedInitMessage;
 
 pub fn get_program_code(binary: &sample::actor::BinaryPath) -> Result<Vec<u8>> {
     std::fs::read(&binary).map_err(|_| format!("Unable to load program's code: {}", binary))
+}
+
+pub fn overrided_init_to_common_message(message: OverridedInitMessage) -> sample::message::Message {
+    sample::message::Message {
+        source: message.source,
+        dest: Some(message.actor),
+        exit_code: None,
+        reply_to: None,
+        gas_limit: message.gas_limit,
+        id: message.id,
+        payload: message.payload,
+        value: message.value,
+    }
 }
 
 pub fn create_test(test: sample::test::Test) -> Result<Test> {
@@ -56,8 +84,9 @@ pub fn create_test(test: sample::test::Test) -> Result<Test> {
 
         if let Actor::Program(program) = actor {
             let message = match program.message {
-                Some(message) => Some(create_message(
+                Some(message) => Some(create_init_message(
                     message,
+                    program.address.into(),
                     &mut nonce,
                     &notebook,
                     &mut messages,
@@ -71,7 +100,7 @@ pub fn create_test(test: sample::test::Test) -> Result<Test> {
 
     let mut fixtures = Vec::new();
 
-    let count = fixtures.len();
+    let count = test.fixtures.len();
 
     for i in 0..count {
         let default_name = if count == 1 {
@@ -81,10 +110,11 @@ pub fn create_test(test: sample::test::Test) -> Result<Test> {
         };
 
         fixtures.push(create_fixture(
+            test.title.clone(),
             default_name,
-            notebook,
-            programs,
-            test.fixtures[i],
+            notebook.clone(),
+            programs.clone(),
+            test.fixtures[i].clone(),
         )?);
     }
 
@@ -108,13 +138,19 @@ pub fn create_steps(
     let mut found_final = false;
     let mut v = vec![];
 
+    if let Some(num) = steps[0].number {
+        if num != 0 {
+            return Err(format!("Can't find step number 0 (init step)"));
+        }
+    }
+
     for step in steps {
         if found_final {
-            return Err(format!());
+            return Err(format!("Final step was already found"));
         }
         if let Some(num) = step.number {
             if num < current {
-                return Err(format!());
+                return Err(format!("Incorrect order of steps"));
             }
             current = num
         } else {
@@ -131,9 +167,9 @@ pub fn create_steps(
         let messages = transform_messages(step.messages, nonce, notebook, msgs)?;
         let memory = transform(step.memory, &create_memory)?;
         let allocations = transform(step.allocations, &create_allocation)?;
-        let waitlist = transform_messages(step.messages, nonce, notebook, msgs)?;
+        let waitlist = transform_messages(step.waitlist, nonce, notebook, msgs)?;
         let query = transform(step.query, &create_query)?;
-        let mailbox = transform_messages(step.messages, nonce, notebook, msgs)?;
+        let mailbox = transform_messages(step.mailbox, nonce, notebook, msgs)?;
 
         v.push(Step {
             number,
@@ -184,7 +220,25 @@ pub fn transform_messages(
     })
 }
 
-const SUPERUSER: u64 = 0;
+pub fn transform_overrided_init_messages(
+    input: Option<Vec<sample::message::OverridedInitMessage>>,
+    nonce: &mut u64,
+    notebook: &BTreeMap<Keyword, ProgramId>,
+    messages: &mut BTreeMap<u64, MessageId>,
+) -> Result<Option<Vec<Message>>> {
+    Ok(match input {
+        Some(dataset) => {
+            let mut v = vec![];
+            for data in dataset {
+                v.push(create_message(overrided_init_to_common_message(data), nonce, notebook, messages)?);
+            }
+            Some(v)
+        }
+        _ => None,
+    })
+}
+
+const SUPERUSER: u64 = 10001;
 
 pub fn create_message(
     message: sample::message::Message,
@@ -204,7 +258,7 @@ pub fn create_message(
             if let Some(id) = notebook.get(&keyword) {
                 *id
             } else {
-                return Err(format!(""));
+                return Err(format!("Binding wasn't found: {}", keyword));
             }
         }
         Some(sample::address::Address::ChainAddress(address)) => address.into(),
@@ -216,11 +270,11 @@ pub fn create_message(
             if let Some(id) = notebook.get(&keyword) {
                 *id
             } else {
-                return Err(format!(""));
+                return Err(format!("Binding wasn't found: {}", keyword));
             }
         }
         Some(sample::address::Address::ChainAddress(address)) => address.into(),
-        None => return Err(format!("")),
+        None => return Err(format!("Destination of the message wasn't found")),
     };
 
     let payload = if let Some(payload) = message.payload {
@@ -237,11 +291,11 @@ pub fn create_message(
         if let Some(reply_to) = messages.get(&id) {
             Some((*reply_to, message.exit_code.unwrap_or(0)))
         } else {
-            return Err(format!(""));
+            return Err(format!("Replied message id wasn't found"));
         }
     } else {
         if message.exit_code.is_some() {
-            return Err(format!(""));
+            return Err(format!("Exit code was specified for non-reply scenario"));
         }
         None
     };
@@ -257,22 +311,73 @@ pub fn create_message(
     })
 }
 
+pub fn create_init_message(
+    message: sample::message::InitMessage,
+    dest: ProgramId,
+    nonce: &mut u64,
+    notebook: &BTreeMap<Keyword, ProgramId>,
+    messages: &mut BTreeMap<u64, MessageId>,
+) -> Result<Message> {
+    let id: MessageId = (*nonce).into();
+    *nonce += 1;
+
+    if let Some(identifier) = message.id {
+        messages.insert(identifier, id);
+    }
+
+    let source: ProgramId = match message.source {
+        Some(sample::address::Address::Bind(keyword)) => {
+            if let Some(id) = notebook.get(&keyword) {
+                *id
+            } else {
+                return Err(format!("Binding wasn't found: {}", keyword));
+            }
+        }
+        Some(sample::address::Address::ChainAddress(address)) => address.into(),
+        None => SUPERUSER.into(),
+    };
+
+    let payload = if let Some(payload) = message.payload {
+        create_payload(payload)?
+    } else {
+        Vec::new().into()
+    };
+
+    let gas_limit = message.gas_limit.unwrap_or(u64::MAX);
+
+    let value = message.value.unwrap_or_default();
+
+    Ok(Message {
+        id,
+        source,
+        dest,
+        payload,
+        gas_limit,
+        value,
+        reply: None,
+    })
+}
+
 pub fn create_memory(_memory: sample::memory::Memory) -> Result<Memory> {
-    Err(format!(""))
+    Err(format!("Can't create memory"))
 }
 
 pub fn create_allocation(_allocation: sample::allocation::Allocation) -> Result<Allocation> {
-    Err(format!(""))
+    Err(format!("Can't create allocation"))
 }
 
-pub fn create_payload(_payload: sample::payload::PayloadInput) -> Result<Payload> {
-    Err(format!(""))
+pub fn create_payload(payload: sample::payload::PayloadInput) -> Result<Payload> {
+    if let sample::payload::PayloadInput::PayloadBytes(string) = payload {
+        return Ok(string.into_bytes().into());
+    }
+    Err(format!("Can't create payload"))
 }
 
 pub fn create_query(_query: sample::query::Query) -> Result<Query> {
-    Err(format!(""))
+    Err(format!("Can't create query"))
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Fixture {
     pub name: String,
     pub messages: BTreeMap<u64, MessageId>,
@@ -282,27 +387,29 @@ pub struct Fixture {
 }
 
 pub fn create_fixture(
+    test_name: String,
     default_name: String,
     notebook: BTreeMap<Keyword, ProgramId>,
     programs: BTreeMap<ProgramId, WasmProgram>,
     fixture: sample::fixture::Fixture,
 ) -> Result<Fixture> {
-    let name = fixture.name.unwrap_or(default_name);
+    let name = format!("{} / {}", test_name, fixture.name.unwrap_or(default_name));
+    let mut programs = programs;
     let mut nonce = programs.keys().len() as u64;
     let mut messages: BTreeMap<u64, MessageId> = BTreeMap::new();
 
-    if let Some(inits) = transform_messages(fixture.inits, &mut nonce, &notebook, &mut messages)? {
+    if let Some(inits) = transform_overrided_init_messages(fixture.inits, &mut nonce, &notebook, &mut messages)? {
         for init in inits {
             if let Some(entry) = programs.get_mut(&init.dest) {
                 entry.init = Some(init);
             } else {
-                return Err(format!(""));
+                return Err(format!("Init"));
             }
         }
     }
 
-    if let Some(program) = programs.values().find(|v| v.init.is_none()) {
-        return Err(format!(""));
+    if let Some(_) = programs.values().find(|v| v.init.is_none()) {
+        return Err(format!("Program can't find it's initial message"));
     };
 
     let mut messages = BTreeMap::new();
@@ -317,6 +424,7 @@ pub fn create_fixture(
     })
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Step {
     pub number: StepNumber,
     pub immortal: bool,
@@ -328,53 +436,28 @@ pub struct Step {
     pub mailbox: Option<Vec<Message>>,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum StepNumber {
     Final,
     Ordered(u8),
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Memory {
     pub program_id: ProgramId,
     pub address: usize,
     pub bytes: Vec<u8>,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Allocation {
     pub program_id: ProgramId,
     pub filter: Option<AllocationFilter>,
     pub kind: AllocationExpectationKind,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Query {
     pub program_id: ProgramId,
     pub payload: Payload,
-}
-
-#[test]
-fn name() {
-    let yaml = r#"
-    title: Test title
-
-    purpose: Test purpose
-
-    description: Test description
-
-    actor:
-      bind: pinger
-      address:
-        id: 1
-      binary: target/wasm32-unknown-unknown/release/demo_async_multisig.wasm
-      message:
-        payload:
-          hello: world
-
-    fixtures:
-    - name: Some fixture
-      step:
-        number: 10
-    "#;
-
-    let test: crate::sample::test::Test = serde_yaml::from_str(yaml).unwrap();
-
-    println!("{:?}", test);
 }

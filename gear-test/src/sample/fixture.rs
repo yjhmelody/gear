@@ -1,6 +1,6 @@
 use serde::{Deserialize, Deserializer, Serialize};
 
-use super::message::Message;
+use super::message::OverridedInitMessage;
 use super::step::Step;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -23,13 +23,11 @@ pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Fix
     FixtureInput::deserialize(deserializer).map(|v| v.into())
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Fixture {
     pub name: Option<String>,
     #[serde(flatten)]
-    #[serde(deserialize_with = "super::message::deserialize_init_option")]
-    pub inits: Option<Vec<Message>>,
-    #[serde(flatten)]
-    #[serde(deserialize_with = "super::step::deserialize")]
+    #[serde(deserialize_with = "super::message::deserialize_overrided_init_option")]
+    pub inits: Option<Vec<OverridedInitMessage>>,
     pub steps: Vec<Step>,
 }

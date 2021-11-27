@@ -4,7 +4,7 @@ use serde_yaml::Value;
 
 use super::address::Address;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Memory {
     pub program_id: Address,
     #[serde(rename = "at")]

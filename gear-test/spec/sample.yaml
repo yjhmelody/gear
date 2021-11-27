@@ -4,16 +4,23 @@ purpose: Test purpose
 
 description: Test description
 
-actor:
-  bind: pinger
+actors:
+- bind: pinger
   address:
     id: 1
-  binary: target/wasm32-unknown-unknown/release/demo_async_multisig.wasm
+  binary: /Users/breathx/Work/gear/target/wasm32-unknown-unknown/release/demo_ping.wasm
   message:
-    payload:
-      hello: world
+    payload_bytes: Hello, world
+
+- bind: alice
+  address:
+    id: 2
 
 fixtures:
-- name: Some fixture
-  step:
-    number: 10
+- name: Helloworld
+  steps:
+  - messages:
+    - source:
+        id: 5
+      dest: pinger
+      payload_bytes: hello

@@ -4,11 +4,11 @@ use serde::{Deserialize, Serialize};
 
 pub type Keyword = String;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(untagged)]
 pub enum Address {
-    Bind(Keyword),
     ChainAddress(ChainAddress),
+    Bind(Keyword),
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
