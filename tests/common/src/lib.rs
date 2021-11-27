@@ -454,9 +454,9 @@ impl RunnerContext {
 
         let runner = self.runner();
         while let Some(message) = messages.pop() {
-            let mut run_result = runner.run_next(message, u64::MAX);
+            let mut run_result = runner.run_next(message);
             runner.process_wait_list(&mut run_result);
-            for new_message in run_result.message_queue.drain(..) {
+            for new_message in run_result.messages.drain(..) {
                 messages.push(new_message);
             }
             for (id, outcome) in run_result.outcomes {

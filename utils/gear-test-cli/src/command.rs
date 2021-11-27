@@ -46,11 +46,11 @@ impl GearTestCmd {
                         sp_io::storage::clear_prefix(gear_common::STORAGE_PROGRAM_PREFIX, None);
                         sp_io::storage::clear_prefix(gear_common::STORAGE_WAITLIST_PREFIX, None);
                         gear_core::storage::Storage {
-                            message_queue: gear_core::storage::InMemoryMessageQueue::default(),
                             program_storage: runner::ext::ExtProgramStorage,
                             log: Default::default(),
                         }
                     },
+                    Some(Box::new(&new_test_ext)),
                 )
             })
             .map_err(|e| sc_cli::Error::Application(e.into()))
