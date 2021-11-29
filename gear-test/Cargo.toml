@@ -7,7 +7,12 @@ license = "GPL-3.0"
 
 [dependencies]
 gear-core = { path = "../core" }
+gear-node-runner = { path = "../node-runner" }
+gear-core-runner = { path = "../core-runner", default-features = false }
+gear-backend-common = { path = "../core-backend/common" }
+gear-backend-wasmtime = { path = "../core-backend/wasmtime" }
 
+anyhow = "1"
 serde = { version = "1.0.130", features = ["derive"] }
 serde_yaml = "0.8.21"
 serde_json = "1.0.72"

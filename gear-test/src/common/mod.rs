@@ -41,10 +41,10 @@ use std::fmt;
 impl fmt::Debug for WasmProgram {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("WasmProgram")
-         .field("path", &self.path)
-         .field("code", &"Some wasm code")
-         .field("init", &self.init)
-         .finish()
+            .field("path", &self.path)
+            .field("code", &"Some wasm code")
+            .field("init", &self.init)
+            .finish()
     }
 }
 
@@ -138,6 +138,10 @@ pub fn create_steps(
     let mut found_final = false;
     let mut v = vec![];
 
+    if steps.len() < 2 {
+        return Err(format!("Required at least 2 steps"));
+    }
+
     if let Some(num) = steps[0].number {
         if num != 0 {
             return Err(format!("Can't find step number 0 (init step)"));
@@ -230,7 +234,12 @@ pub fn transform_overrided_init_messages(
         Some(dataset) => {
             let mut v = vec![];
             for data in dataset {
-                v.push(create_message(overrided_init_to_common_message(data), nonce, notebook, messages)?);
+                v.push(create_message(
+                    overrided_init_to_common_message(data),
+                    nonce,
+                    notebook,
+                    messages,
+                )?);
             }
             Some(v)
         }
@@ -398,7 +407,9 @@ pub fn create_fixture(
     let mut nonce = programs.keys().len() as u64;
     let mut messages: BTreeMap<u64, MessageId> = BTreeMap::new();
 
-    if let Some(inits) = transform_overrided_init_messages(fixture.inits, &mut nonce, &notebook, &mut messages)? {
+    if let Some(inits) =
+        transform_overrided_init_messages(fixture.inits, &mut nonce, &notebook, &mut messages)?
+    {
         for init in inits {
             if let Some(entry) = programs.get_mut(&init.dest) {
                 entry.init = Some(init);

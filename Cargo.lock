@@ -2193,7 +2193,12 @@ dependencies = [
 name = "gear-test-refactored"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "gear-backend-common",
+ "gear-backend-wasmtime",
  "gear-core",
+ "gear-core-runner",
+ "gear-node-runner",
  "hex",
  "primitive-types 0.1.6",
  "serde",
