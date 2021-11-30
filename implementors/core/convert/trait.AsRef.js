@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["gear_core"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.56.1/core/convert/trait.AsRef.html\" title=\"trait core::convert::AsRef\">AsRef</a>&lt;[u8]&gt; for <a class=\"struct\" href=\"gear_core/message/struct.Payload.html\" title=\"struct gear_core::message::Payload\">Payload</a>","synthetic":false,"types":["gear_core::message::Payload"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

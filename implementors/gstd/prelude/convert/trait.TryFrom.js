@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["gstd"] = [{"text":"impl <a class=\"trait\" href=\"gstd/prelude/convert/trait.TryFrom.html\" title=\"trait gstd::prelude::convert::TryFrom\">TryFrom</a>&lt;&amp;'_ [u8]&gt; for <a class=\"struct\" href=\"gstd/struct.ActorId.html\" title=\"struct gstd::ActorId\">ActorId</a>","synthetic":false,"types":["gstd::common::primitives::ActorId"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

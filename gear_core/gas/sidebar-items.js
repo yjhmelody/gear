@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["ChargeResult","The result of charging gas."],["InstrumentError","Instrumentation error."]],"fn":[["instrument","Instrument code with gas-counting instructions."]],"struct":[["GasCounter","Gas counter with some predifined maximum gas."]]});

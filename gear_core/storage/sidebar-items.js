@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["InMemoryProgramStorage","In-memory program storage (for tests)."],["Storage","Storage."]],"trait":[["ProgramStorage","Abstraction over program storage."],["StorageCarrier","General trait, which informs what exact storage types are used by a storage manager (“carrier”)."]],"type":[["InMemoryStorage","Fully in-memory storage (for tests)."]]});
